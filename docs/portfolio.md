@@ -87,3 +87,25 @@ If we changed the setScaleFactor method signature, the estimated impact set woul
 - org.jhotdraw.draw.figure.AbstractFigure (invalidates and repaints when the view scale changes)
 - org.jhotdraw.gui.action.AbstractDrawingViewAction$EventHandler (listens for property changes that may affect the ZoomAction's enabled state)
 
+[CILab]
+
+Introduction: In software engineering, continuous integration (CI) is the practice of merging
+all developers’ working copies to a shared mainline several times a day [Tho]. Grady Booch first
+proposed the term CI in his 1991 method although he did not advocate integrating several times
+a day [Boo]. Extreme programming (XP) adopted the concept of CI and did advocate integrating
+more than once per day – perhaps as many as tens of times per day [Bec99].
+
+Objectives:
+• Understand what CI is.
+• Setup a simple CI pipeline.
+
+Classwork:
+1. Go to [Building and testing Java with Maven]
+2. Add a *.yml file to your repository path <YOUR_PROJECT>/.github/workflows/ to tell
+   GitHub Actions CI what to do.
+3. Configure the *.yml to automatically build your project for each pull request (use maven).
+4. To use shared jars from GitHub Packages you need create a .maven-settings.xml file in
+   the project root folder, see [Working with the Apache Maven registry]
+5. Configure the *.yml to execute tests automatically.
+
+
