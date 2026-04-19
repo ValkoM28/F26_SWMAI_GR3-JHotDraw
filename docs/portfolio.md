@@ -70,3 +70,20 @@ Feature grid display:
 
 to be finished
 
+[AnalysisLab]
+
+Objectives: Apply static and dynamic analysis to find the estimated impacted set of classes based on your Change request.
+
+Classwork: Find The Estimated Impact Set of classes by following the activities illustrated in Figure 7.9
+
+Portfolio Work: Use Table 1 to list the packages and the number of classes you visited after you located the concept. Write short comments explaining what you have learned about each package and how they contribute to your feature?
+
+If we changed the setScaleFactor method signature, the estimated impact set would include all classes that call this method directly or indirectly. This would likely include:
+- org.jhotdraw.gui.action.ZoomAction (directly calls setScaleFactor on the Drawing
+- org.jhotdraw.draw.DefaultDrawingView (calls setScaleFactor to apply the zoom level)
+- org.jhotdraw.draw.figure.AbstractAttributedCompositeFigure (repaints itself when the view scale changes)
+- org.jhotdraw.draw.handle.AbstractHandle (recalculates handle positions when zoom changes)
+- org.jhotdraw.draw.handle.BezierNodeHandle (recalculates control point handle positions when zoom changes)
+- org.jhotdraw.draw.figure.AbstractFigure (invalidates and repaints when the view scale changes)
+- org.jhotdraw.gui.action.AbstractDrawingViewAction$EventHandler (listens for property changes that may affect the ZoomAction's enabled state)
+
