@@ -134,3 +134,129 @@ Describe the code smell that triggered your refactoring, see Chapter 4 in [Ker05
 the refactorings from [Ker05] did you apply and what was the reasoning behind it?
 • Remember to describe the strategies and purpose of the Refactorings.
 
+Refactor 1: 
+Commit message: 
+refactor: jhotdraw-gui/src/main/java/org/jhotdraw/gui/action/ButtonFactory.java separated duplicating string fragments to constants
+Used SonarQube to find code smells in ButtonFactory.java. Found that the string fragments for zoom levels were duplicated in the code. Refactored by extracting these string fragments into constants to improve maintainability and reduce the risk of typos or inconsistencies in the future. This refactoring follows the "Extract Constant" pattern from [Ker05], which helps to centralize commonly used values and makes the code easier to read and maintain.
+Used Alt + J to select all occurrences of the string fragments and then extracted them into constants using the "Extract Constant" refactoring in IntelliJ IDEA. This approach ensures that any future changes to the zoom level strings only need to be made in one place, improving code maintainability and reducing the likelihood of errors.
+
+Refactor 2: 
+In jhotdraw-core/src/main/java/org/jhotdraw/draw/DefaultDrawingView.java there are fields that need to be either serialzed or marked transient. 
+This was not resolved in this portfolio, as it is not one of the listed code smells in the presentation.
+However, it will crash the app if resources run out and the GC tries to serialize the view.
+
+SonarQube: 
+1. Duplicated Code                                                                                                                                                                                                                                                                                                                                        
+   Look for identical or near-identical blocks across methods/classes. Ctrl+F a suspicious snippet.
+   SonarLint: Yes — flags duplicate blocks and repeated literals (java:S1192, S4144)
+
+2. Long Method                                                                                                                                                                                                                                                                                                                                            
+   Scroll through methods — if it doesn't fit on one screen, it's too long. Rule of thumb: >20 lines.                                                                                                                                                                                                                                                        
+   SonarLint: Yes — flags methods exceeding line threshold (java:S138)
+
+3. Large Class                                                                                                                                                                                                                                                                                                                                            
+   Count fields and methods. >10 fields or >20 methods is a signal.                                                                                                                                                                                                                                                                                        
+   SonarLint: Partial — flags too many methods (java:S6539)
+
+4. Long Parameter List                                                                                                                                                                                                                                                                                                                                    
+   Look for method signatures with >3–4 parameters.                                                                                                                                                                                                                                                                                                        
+   SonarLint: Yes — flags methods with too many parameters (java:S107)
+
+5. Divergent Change                                                                                                                                                                                                                                                                                                                                       
+   Read the class and ask: "does this class change for multiple unrelated reasons?" Manual only.                                                                                                                                                                                                                                                             
+   SonarLint: No
+
+6. Shotgun Surgery                                                                                                                                                                                                                                                                                                                                        
+   Look at git history (git log --follow -p <file>) — if a single concern touches many files. Manual only.                                                                                                                                                                                                                                                 
+   SonarLint: No
+
+7. Feature Envy                                                                                                                                                                                                                                                                                                                                           
+   Find methods that call many methods/fields of another class more than their own.                                                                                                                                                                                                                                                                        
+   SonarLint: No (some tools like JDeodorant detect it)
+
+8. Data Clumps                                                                                                                                                                                                                                                                                                                                            
+   Look for the same 3+ parameters appearing together in multiple method signatures.                                                                                                                                                                                                                                                                         
+   SonarLint: No — purely manual
+
+Refactor 3:
+File: jhotdraw-core/src/main/java/org/jhotdraw/draw/DefaultDrawingView.java
+
+Code smell — Long Method and Duplicated Code:
+SonarQube flagged two methods in DefaultDrawingView — drawDrawingVolatileBuffered and drawDrawingNonvolatileBuffered — for excessive Cognitive Complexity (35 and 25 respectively, against the allowed threshold of 15). Both methods mixed three distinct responsibilities in a single body: managing the buffered area geometry, validating and recreating the image buffer, and repainting dirty regions. The dirty-area repainting logic was also duplicated verbatim between the two methods, differing only in the buffer type (VolatileImage vs BufferedImage). These are the Long Method and Duplicated Code smells from Chapter 4 of [Ker05].
+
+Plan:
+Decompose both methods by extracting the distinct responsibilities into named helper methods, and unify the duplicated repainting logic into a shared implementation so that the two buffer paths delegate to the same code.
+
+Strategy and refactorings applied — Extract Method [Ker05]:
+The Extract Method refactoring was applied repeatedly, each time isolating one coherent sub-task:
+
+1. updateBufferedAreaShift(Point shift, Rectangle vr) — extracts the logic that calculates how much the buffered area has shifted relative to the visible rectangle and marks the newly uncovered edges as dirty. Naming this makes the intent clear and removes the nesting that was inflating the CC of the outer method.
+
+2. resizeAndInvalidateBuffer(Rectangle vr) — extracts the else-branch that handles the case where the buffer dimensions no longer match the visible rect: it resets the buffered area bounds, marks everything dirty, and discards the old buffer object. Previously this was an anonymous else-block with no label.
+
+3. validateBuffer(Rectangle vr) — extracts the switch statement that re-creates or marks-dirty the VolatileImage based on its validation state (IMAGE_INCOMPATIBLE / IMAGE_RESTORED). Isolating this removes the switch and its nested try/catch from the outer while-loop, which was the largest single contributor to the high CC score. The switch was also replaced with if/else statements as advised by SonarQube, since only two cases were present.
+
+4. paintDirtyBufferAreaToGraphics(Graphics2D, int, int, Point) — extracts the dirty-region repainting logic (composite setup, optional copy-area shift, clip, clear, redraw) into a single shared implementation. Two thin overloads — paintDirtyBufferArea(VolatileImage, Point) and paintDirtyBufferArea(BufferedImage, Point) — delegate to this shared method, eliminating the duplication between the volatile and non-volatile paths entirely.
+
+Reasoning:
+Each extracted method has a name that replaces a comment that previously explained what the following block of code did. This is the core motivation for Extract Method in [Ker05]: if you need a comment to explain a block, the block deserves its own method. The resulting drawDrawingVolatileBuffered reads as a sequence of named steps, with complexity reduced from 23 to approximately 8, well within the SonarQube threshold.
+
+9. Primitive Obsession                                                                                                                                                                                                                                                                                                                                    
+   Look for String, int, boolean used where a small domain class would be clearer (e.g. color as String, coordinate as two ints).                                                                                                                                                                                                                          
+   SonarLint: Partial — flags some cases
+
+10. Switch Statements                                                                                                                                                                                                                                                                                                                                     
+    Search switch or long if/else if chains that switch on type.                                                                                                                                                                                                                                                                                            
+    SonarLint: Partial — flags complex conditionals (java:S1479, S131)
+
+11. Parallel Inheritance Hierarchies                                                                                                                                                                                                                                                                                                                      
+    When adding a subclass of A forces adding a subclass of B. Requires reading class hierarchy manually.                                                                                                                                                                                                                                                     
+    SonarLint: No
+
+12. Lazy Class                                                                                                                                                                                                                                                                                                                                            
+    Classes with very few methods/fields that barely justify their existence.                                                                                                                                                                                                                                                                               
+    SonarLint: No
+
+13. Speculative Generality                                                                                                                                                                                                                                                                                                                              
+    Look for abstract classes with only one subclass, unused parameters, or overly generic names like AbstractProcessor.                                                                                                                                                                                                                                      
+    SonarLint: Partial — flags unused code (java:S1144, S2583)
+
+14. Temporary Field                                                                                                                                                                                                                                                                                                                                       
+    Instance variables that are only set in one method and null everywhere else.                                                                                                                                                                                                                                                                              
+    SonarLint: Partial — flags some null-related patterns
+
+15. Message Chains                                                                                                                                                                                                                                                                                                                                        
+    Look for a.getB().getC().getD() call chains (Law of Demeter violations).                                                                                                                                                                                                                                                                                
+    SonarLint: No
+
+16. Middle Man                                                                                                                                                                                                                                                                                                                                            
+    A class where most methods just delegate to another class — check if >50% of methods are one-liners that call another object.                                                                                                                                                                                                                             
+    SonarLint: No
+
+17. Inappropriate Intimacy                                                                                                                                                                                                                                                                                                                                
+    A class accessing private/internal fields or methods of another via excessive coupling.                                                                                                                                                                                                                                                                 
+    SonarLint: Partial — flags some coupling and visibility issues
+
+18. Alternative Classes with Different Interfaces                                                                                                                                                                                                                                                                                                         
+    Two classes doing the same thing with different method names. Manual comparison.                                                                                                                                                                                                                                                                        
+    SonarLint: No
+
+19. Incomplete Library Class                                                                                                                                                                                                                                                                                                                              
+    A library class missing functionality, forcing you to add utility methods elsewhere. Manual.                                                                                                                                                                                                                                                              
+    SonarLint: No
+
+20. Data Class                                                                                                                                                                                                                                                                                                                                            
+    Classes with only fields + getters/setters and no real behavior.                                                                                                                                                                                                                                                                                        
+    SonarLint: No (Checkstyle can help)
+
+21. Refused Bequest                                                                                                                                                                                                                                                                                                                                       
+    A subclass that ignores or overrides most of what it inherits. Look for empty or exception-throwing overrides.                                                                                                                                                                                                                                            
+    SonarLint: Partial — flags some cases (java:S2177)
+
+22. Comments                                                                                                                                                                                                                                                                                                                                              
+    Blocks of commented-out code, or comments explaining what rather than why.                                                                                                                                                                                                                                                                                
+    SonarLint: Yes — flags commented-out code (java:S125) 
+
+!!!!! IMPORTANT !!!!! 
+Do more refactoring practice before the exam. 
+
