@@ -118,3 +118,40 @@ The purpose was to improve maintainability and reduce defect risk in the undo/re
 - removing duplicated logic
 - improving readability of undo/redo operations
 - making future changes to action updates and guard logic occur in one place
+
+
+# 05 [ActLab]
+
+
+## Actualization
+
+Undo/redo is implemented through `UndoRedoManager`, drawing changes are delivered as `UndoableEdit` events by `Drawing` and `AbstractDrawing`, and `DrawView` connects the manager to the active drawing and application actions. The refactoring also propagated the shared execution and action-state logic into private helpers without changing the public API.
+
+## Clean Architecture
+
+JHotDraw separates responsibilities into collaborating layers:
+
+- **Core domain:** `Drawing`, figures, handles, and edit classes represent drawings and their state changes.
+- **Application/use-case coordination:** `UndoRedoManager` coordinates undo and redo history and exposes actions for the editor.
+- **Interface/application integration:** `DrawView` connects the drawing, manager, menus, and unsaved-change state.
+- **Infrastructure:** Swing actions, resource bundles, file formats, and Maven modules provide framework and I/O details.
+
+The dependency direction keeps the drawing model independent of `DrawingView`, `DrawingEditor`, and tools. Changes are communicated through `UndoableEdit` and listener contracts, so the model does not depend on the user-interface implementation. This makes the undo/redo behavior reusable and limits change propagation to the integration points that actually consume the contract.
+
+## Clean Code principles
+
+- **Single responsibility:** edit classes restore specific kinds of state, while `UndoRedoManager` owns history and action state.
+- **Meaningful names:** `performUndoRedo` and `updateActionState` express intent more clearly than repeating low-level operations.
+- **Small methods:** `undo`, `redo`, and `undoOrRedo` delegate common mechanics to focused private helpers.
+- **DRY:** shared undo/redo guarding and action-label updates are implemented once.
+- **Preserved interfaces:** public manager methods remain stable while internal duplication is removed.
+
+## SOLID examples
+
+| Principle | Example in JHotDraw |
+|---|---|
+| **S - Single Responsibility** | `UndoRedoManager` manages history and action state; `TransformEdit` restores transform changes; `DrawView` performs application wiring. |
+| **O - Open/Closed** | New `UndoableEdit` implementations can represent additional operations without changing the manager's history protocol. |
+| **L - Liskov Substitution** | Concrete `UndoableEdit` types are handled through the `UndoableEdit` contract and can be undone or redone by the manager. |
+| **I - Interface Segregation** | `Drawing` exposes focused listener and drawing contracts, while views, tools, and formats use the interfaces relevant to their roles. |
+| **D - Dependency Inversion** | The drawing publishes edits through the `UndoableEditListener` abstraction; `AbstractDrawing` does not depend directly on `UndoRedoManager`. |
