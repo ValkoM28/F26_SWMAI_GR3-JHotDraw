@@ -58,3 +58,63 @@ The concept location is `org.jhotdraw.undo.UndoRedoManager`. Static analysis sho
 | `org.jhotdraw.samples.draw` | 2 | `DrawingPanel` wires a drawing to an `UndoRedoManager`; `DrawView` owns the manager, installs the actions, and synchronizes unsaved changes. This is the dynamic execution path used for the estimate. |
 
 **Estimated impact set:** 27 production classes across 9 packages. The set includes the classes visited while following event production, event delivery, history management, action presentation, and the Draw sample integration. Other sample views use the same wiring pattern, but were not counted because they are alternative application integrations rather than part of the selected Draw sample path.
+
+# 04 [RefactLab]
+
+**User story used for refactoring:** As a user, I want to undo and redo my recent actions so that I can correct mistakes without losing progress.
+
+## Classwork
+
+- SonarLint was used on the core class in the undo/redo path: [UndoRedoManager.java](..\jhotdraw-utils\src\main\java\org\jhotdraw\undo\UndoRedoManager.java).
+- Refactoring target was selected from the change-request concept location (`org.jhotdraw.undo.UndoRedoManager`).
+
+## Portfolio Work
+
+### Code smell that triggered refactoring (Ker05 Chapter 4)
+
+In [UndoRedoManager.java](..\jhotdraw-utils\src\main\java\org\jhotdraw\undo\UndoRedoManager.java), there were maintainability smells in undo/redo control logic:
+
+- duplicated method bodies in `undo()`, `redo()`, and `undoOrRedo()` (same flag-handling and action refresh structure)
+- duplicated action state/label update logic in `updateActions()`
+
+These match [Ker05] Chapter 4 concerns around duplicated logic and methods that communicate intent poorly because repeated low-level steps obscure the main behavior.
+
+### What I planned to change
+
+I planned to preserve behavior while making the flow intention-revealing:
+
+1. Extract the repeated undo/redo execution wrapper into one method.
+2. Extract repeated action-label update steps into one method.
+3. Keep public API unchanged so calling code and user-visible behavior stay stable.
+
+### Refactoring strategy
+
+I applied an incremental strategy:
+
+1. Identify exact duplicated blocks.
+2. Introduce private helper methods.
+3. Replace duplicated code in place, one method at a time.
+4. Compile and verify.
+
+File refactored: - [UndoRedoManager.java](..\jhotdraw-utils\src\main\java\org\jhotdraw\undo\UndoRedoManager.java)
+
+Validation run:
+
+- `mvn -pl jhotdraw-utils -am -DskipTests compile` (build success)
+
+### Refactoring pattern(s) from Ker05 and reasoning
+
+- **Compose Method**: applied to make high-level operations (`undo`, `redo`, `undoOrRedo`) read as one clear step by delegating repeated mechanics.
+	- Reasoning: the previous methods repeated the same scaffolding (set flag, call super, reset flag, update actions) and hid the core intent.
+
+- **Extract Method** (mechanics used to realize Compose Method):
+	- `performUndoRedo(int operation)` centralizes guarded execution and post-update behavior.
+	- `updateActionState(AbstractAction action, boolean canPerform, String presentationName, String fallbackKey)` centralizes repeated action-label state changes.
+
+### Purpose of the refactoring
+
+The purpose was to improve maintainability and reduce defect risk in the undo/redo feature path by:
+
+- removing duplicated logic
+- improving readability of undo/redo operations
+- making future changes to action updates and guard logic occur in one place
