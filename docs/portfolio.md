@@ -11,7 +11,7 @@ Following user stories representing existing features were added to GitHub Proje
 
 - As a user, I want to create, open, and close drawings so that I can manage my work sessions efficiently
 
-- As a user, I want to undo and redo my recent actions so that I can correct mistakes without losing progress
+- `As a user, I want to undo and redo my recent actions so that I can correct mistakes without losing progress`
 
 - As a user, I want to click on figures to select them so that I can move, resize, or edit them
 
@@ -21,7 +21,11 @@ Following user stories representing existing features were added to GitHub Proje
 
 # 02.2 [CLLab]
 
-**User story:** As a user, I want to undo and redo my recent actions so that I can correct mistakes without losing progress
+### User story:
+
+```
+As a user, I want to undo and redo my recent actions so that I can correct mistakes without losing progress
+```
 
 ### Initial table
 
@@ -122,9 +126,6 @@ The purpose was to improve maintainability and reduce defect risk in the undo/re
 
 # 05 [ActLab]
 
-
-## Actualization
-
 Undo/redo is implemented through `UndoRedoManager`, drawing changes are delivered as `UndoableEdit` events by `Drawing` and `AbstractDrawing`, and `DrawView` connects the manager to the active drawing and application actions. The refactoring also propagated the shared execution and action-state logic into private helpers without changing the public API.
 
 ## Clean Architecture
@@ -155,3 +156,24 @@ The dependency direction keeps the drawing model independent of `DrawingView`, `
 | **L - Liskov Substitution** | Concrete `UndoableEdit` types are handled through the `UndoableEdit` contract and can be undone or redone by the manager. |
 | **I - Interface Segregation** | `Drawing` exposes focused listener and drawing contracts, while views, tools, and formats use the interfaces relevant to their roles. |
 | **D - Dependency Inversion** | The drawing publishes edits through the `UndoableEditListener` abstraction; `AbstractDrawing` does not depend directly on `UndoRedoManager`. |
+
+# 06 [TestingLab]
+
+JUnit 4.13.2 was added as a test dependency to `jhotdraw-utils`, which owns `UndoRedoManager`. The tests use a small in-memory `AbstractUndoableEdit` stub, so they test the manager's history behavior without depending on drawings, Swing views, or application wiring.
+
+The test class [UndoRedoManagerTest.java](..\jhotdraw-utils\src\test\java\org\jhotdraw\undo\UndoRedoManagerTest.java) covers:
+
+- the best-case undo and redo sequence, including edit state and action enabled state
+- the empty-history boundaries, where undo and redo throw their expected exceptions
+- the boundary where adding a new edit after undo removes the redo branch
+- discarding all edits, including resetting significant-edit state and actions
+
+Java `assert` statements are used for manager/edit invariants in addition to JUnit assertions. A test-only label bundle supplies the manager's action labels while keeping the unit tests isolated from the core and application modules.
+
+## Verification
+
+The focused Maven test command passed:
+
+`mvn -pl jhotdraw-utils -Dtest=UndoRedoManagerTest test`
+
+Result: 5 tests run, 0 failures, 0 errors.
