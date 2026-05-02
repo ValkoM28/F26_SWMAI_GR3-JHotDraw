@@ -157,7 +157,7 @@ The dependency direction keeps the drawing model independent of `DrawingView`, `
 | **I - Interface Segregation** | `Drawing` exposes focused listener and drawing contracts, while views, tools, and formats use the interfaces relevant to their roles. |
 | **D - Dependency Inversion** | The drawing publishes edits through the `UndoableEditListener` abstraction; `AbstractDrawing` does not depend directly on `UndoRedoManager`. |
 
-# 06 [TestingLab]
+# 07 [TestingLab]
 
 JUnit 4.13.2 was added as a test dependency to `jhotdraw-utils`, which owns `UndoRedoManager`. The tests use a small in-memory `AbstractUndoableEdit` stub, so they test the manager's history behavior without depending on drawings, Swing views, or application wiring.
 
@@ -177,3 +177,126 @@ The focused Maven test command passed:
 `mvn -pl jhotdraw-utils -Dtest=UndoRedoManagerTest test`
 
 Result: 5 tests run, 0 failures, 0 errors.
+
+# 09 [TestLab2]
+
+## Mapping User Stories to BDD:
+
+| User Story | BDD Scenario |
+|---|---|
+| As a user, I want to create, open, and close drawings so that I can manage my work sessions efficiently | **Given** a new application session<br>**When** I create a new drawing<br>**Then** I should have an empty canvas ready for editing |
+| As a user, I want to undo and redo my recent actions so that I can correct mistakes without losing progress | **Given** I have performed an edit action on the drawing<br>**When** I perform undo<br>**Then** the action should be reversed and redo should be available |
+| As a user, I want to click on figures to select them so that I can move, resize, or edit them | **Given** a drawing with multiple figures<br>**When** I click on a specific figure<br>**Then** that figure should be selected and editing handles should appear |
+| As a user, I want to create and edit multi-line text areas on the canvas so that I can add descriptive labels or paragraphs to my drawing | **Given** I have a blank canvas<br>**When** I create a text area and enter multiple lines<br>**Then** the text should be displayed with proper line breaks |
+| As a user, I want to zoom in/out and toggle a grid overlay so that I can work with precision at different detail levels | **Given** a drawing at 100% zoom level<br>**When** I zoom in to 200%<br>**Then** the drawing should appear larger and details should be more visible |
+
+## BDD Test Implementation
+
+### Test Framework Setup
+
+JGiven 1.3.1 was added as a test dependency to `jhotdraw-utils` along with AssertJ 3.24.2 for fluent assertions and AssertJ-Swing 3.17.1 for Swing UI testing support.
+
+### Implemented Test: Undo/Redo User Story
+
+Test class: [UndoRedoBDDTest.java](..\jhotdraw-utils\src\test\java\org\jhotdraw\undo\UndoRedoBDDTest.java)
+
+The test follows the JGiven pattern with three stages:
+
+- **GivenStage**: Sets up the test context with an UndoRedoManager and test edits
+- **WhenStage**: Performs user actions (undo, redo, adding new edits)
+- **ThenStage**: Verifies outcomes using AssertJ fluent assertions
+
+### BDD Scenarios Automated
+
+1. **User can undo an action to correct a mistake**
+   - **Given** a drawing with undo manager and an edit action has been performed
+   - **When** the user performs undo
+   - **Then** the action should be reversed, undo should not be available, and redo should be available
+
+2. **User can redo an undone action to restore progress**
+   - **Given** a drawing with undo manager, an edit action performed, and the action has been undone
+   - **When** the user performs redo
+   - **Then** the action should be restored, undo should be available, and redo should not be available
+
+3. **User can undo multiple actions sequentially**
+   - **Given** a drawing with undo manager and multiple edit actions have been performed
+   - **When** the user performs undo multiple times
+   - **Then** all actions should be reversed in reverse order and redo should be available
+
+4. **Performing new action after undo clears redo history**
+   - **Given** a drawing with undo manager, an edit action performed, and the action has been undone
+   - **When** a new edit action is performed
+   - **Then** redo should not be available and the new action should be undoable
+
+### Verification
+
+The BDD tests were verified using:
+
+```powershell
+mvn -pl jhotdraw-utils -Dtest=UndoRedoBDDTest test
+```
+
+Results:
+```powershell
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running org.jhotdraw.undo.UndoRedoBDDTest
+SLF4J: No SLF4J providers were found.
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See https://www.slf4j.org/codes.html#noProviders for further details.
+
+Test Class: org.jhotdraw.undo.UndoRedoBDDTest
+
+ Performing new action after undo clears redo history
+
+   Given a drawing with undo manager
+     And an edit action has been performed
+     And the action has been undone
+    When a new edit action is performed
+    Then redo should not be available
+     And the new action should be undoable
+
+
+ User can redo an undone action to restore progress
+
+   Given a drawing with undo manager
+     And an edit action has been performed
+     And the action has been undone
+    When the user performs redo
+    Then the action should be restored
+     And undo should be available
+     And redo should not be available
+
+
+ User can undo an action to correct a mistake
+
+   Given a drawing with undo manager
+     And an edit action has been performed
+    When the user performs undo
+    Then the action should be reversed
+     And undo should not be available
+     And redo should be available
+
+
+ User can undo multiple actions sequentially
+
+   Given a drawing with undo manager
+     And multiple edit actions have been performed
+    When the user performs undo multiple times
+    Then all actions should be reversed in reverse order
+     And redo should be available
+
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.161 s -- in org.jhotdraw.undo.UndoRedoBDDTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  7.104 s
+[INFO] Finished at: 2026-08-23T09:26:56Z
+[INFO] ------------------------------------------------------------------------
+```
